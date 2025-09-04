@@ -370,3 +370,25 @@ body {
         width: 150px;
     }
 }
+
+/* Добавьте в конец файла */
+.logout-link {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #95a5a6 !important;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.logout-link:hover {
+    color: #e74c3c !important;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}

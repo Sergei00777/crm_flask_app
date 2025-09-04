@@ -1,13 +1,20 @@
 from datetime import datetime, time, timedelta
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config.from_object(Config)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)  # Сессия на 24 часа
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+# Конфигурация пользователя
+USER_CREDENTIALS = {
+    'Сергей': generate_password_hash('336996')
+}
 
 
 # Модели БД
@@ -68,6 +75,104 @@ class CalendarEvent(db.Model):
             'location': self.location,
             'status': self.status
         }
+
+
+class Contact(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    # Основная информация
+    first_name = db.Column(db.String(50), nullable=False)
+    last_name = db.Column(db.String(50), nullable=False)
+    middle_name = db.Column(db.String(50))
+    phone = db.Column(db.String(20))
+    email = db.Column(db.String(120))
+    photo = db.Column(db.String(200))  # путь к фото
+
+    # Паспортные данные
+    passport_series = db.Column(db.String(4))
+    passport_number = db.Column(db.String(6))
+    passport_issued_by = db.Column(db.String(200))
+    passport_issue_date = db.Column(db.Date)
+    passport_department_code = db.Column(db.String(7))
+
+    # Адрес
+    address_index = db.Column(db.String(10))
+    address_country = db.Column(db.String(50))
+    address_region = db.Column(db.String(50))
+    address_city = db.Column(db.String(50))
+    address_street = db.Column(db.String(100))
+    address_house = db.Column(db.String(10))
+    address_apartment = db.Column(db.String(10))
+
+    # Дополнительная информация
+    company = db.Column(db.String(100))
+    position = db.Column(db.String(100))
+    birth_date = db.Column(db.Date)
+    category = db.Column(db.String(20), default='client')  # client, partner, supplier, etc.
+
+    # Социальные сети
+    social_telegram = db.Column(db.String(100))
+    social_whatsapp = db.Column(db.String(100))
+    social_vk = db.Column(db.String(100))
+
+    # Заметки
+    notes = db.Column(db.Text)
+
+    # Системные поля
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user = db.relationship('User', backref=db.backref('contacts', lazy=True))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'middle_name': self.middle_name,
+            'phone': self.phone,
+            'email': self.email,
+            'photo': self.photo,
+            'passport_series': self.passport_series,
+            'passport_number': self.passport_number,
+            'passport_issued_by': self.passport_issued_by,
+            'passport_issue_date': self.passport_issue_date.isoformat() if self.passport_issue_date else None,
+            'passport_department_code': self.passport_department_code,
+            'full_address': self.get_full_address(),
+            'company': self.company,
+            'position': self.position,
+            'birth_date': self.birth_date.isoformat() if self.birth_date else None,
+            'category': self.category,
+            'social_telegram': self.social_telegram,
+            'social_whatsapp': self.social_whatsapp,
+            'social_vk': self.social_vk,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
+    def get_full_address(self):
+        address_parts = []
+        if self.address_index:
+            address_parts.append(self.address_index)
+        if self.address_country:
+            address_parts.append(self.address_country)
+        if self.address_region:
+            address_parts.append(self.address_region)
+        if self.address_city:
+            address_parts.append(f"г. {self.address_city}")
+        if self.address_street:
+            address_parts.append(f"ул. {self.address_street}")
+        if self.address_house:
+            address_parts.append(f"д. {self.address_house}")
+        if self.address_apartment:
+            address_parts.append(f"кв. {self.address_apartment}")
+        return ", ".join(address_parts) if address_parts else "Адрес не указан"
+
+    def get_full_name(self):
+        parts = [self.last_name, self.first_name]
+        if self.middle_name:
+            parts.append(self.middle_name)
+        return " ".join(parts)
 
 
 # Функция для создания демо-данных
@@ -134,6 +239,44 @@ def create_demo_data():
         ]
         db.session.bulk_save_objects(demo_events)
 
+    # Добавляем демо-контакты если их нет
+    if Contact.query.count() == 0:
+        now = datetime.utcnow()
+        demo_contacts = [
+            Contact(
+                first_name='Иван',
+                last_name='Иванов',
+                middle_name='Иванович',
+                phone='+79991234567',
+                email='ivanov@example.com',
+                company='ООО Ромашка',
+                position='Менеджер',
+                birth_date=now - timedelta(days=365 * 30),
+                category='client',
+                address_country='Россия',
+                address_city='Москва',
+                address_street='Ленинская',
+                address_house='10',
+                address_apartment='5'
+            ),
+            Contact(
+                first_name='Анна',
+                last_name='Петрова',
+                middle_name='Сергеевна',
+                phone='+79997654321',
+                email='petrova@example.com',
+                company='ООО Лютик',
+                position='Директор',
+                birth_date=now - timedelta(days=365 * 28),
+                category='partner',
+                address_country='Россия',
+                address_city='Санкт-Петербург',
+                address_street='Невский',
+                address_house='25'
+            )
+        ]
+        db.session.bulk_save_objects(demo_contacts)
+
     db.session.commit()
 
 
@@ -146,13 +289,58 @@ def before_first_request():
         app.has_created_tables = True
 
 
+# Проверка аутентификации
+def login_required(f):
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return redirect(url_for('login', next=request.url))
+        return f(*args, **kwargs)
+
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
+
+# Маршрут для входа
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if 'username' in session:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        if username in USER_CREDENTIALS and check_password_hash(USER_CREDENTIALS[username], password):
+            session['username'] = username
+            session.permanent = True
+
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
+            return redirect(url_for('index'))
+        else:
+            flash('Неверный логин или пароль')
+
+    return render_template('login.html')
+
+
+# Маршрут для выхода
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+
+
 # Маршруты
 @app.route('/')
+@login_required
 def index():
     return render_template('index.html')
 
 
 @app.route('/tasks')
+@login_required
 def tasks():
     status_filter = request.args.get('status', 'all')
     priority_filter = request.args.get('priority', 'all')
@@ -170,6 +358,7 @@ def tasks():
 
 
 @app.route('/api/tasks', methods=['GET', 'POST'])
+@login_required
 def api_tasks():
     if request.method == 'POST':
         data = request.get_json()
@@ -188,6 +377,7 @@ def api_tasks():
 
 
 @app.route('/api/tasks/<int:task_id>', methods=['PUT', 'DELETE'])
+@login_required
 def api_task(task_id):
     task = Task.query.get_or_404(task_id)
 
@@ -214,6 +404,7 @@ def api_task(task_id):
 
 
 @app.route('/calendar/<view_type>')
+@login_required
 def calendar_view(view_type):
     date_str = request.args.get('date')
     if date_str:
@@ -255,6 +446,7 @@ def calendar_view(view_type):
 
 
 @app.route('/api/events', methods=['GET', 'POST'])
+@login_required
 def api_events():
     if request.method == 'POST':
         data = request.get_json()
@@ -290,6 +482,7 @@ def api_events():
 
 
 @app.route('/api/events/<int:event_id>', methods=['PUT', 'DELETE'])
+@login_required
 def api_event(event_id):
     event = CalendarEvent.query.get_or_404(event_id)
 
@@ -308,6 +501,104 @@ def api_event(event_id):
 
     elif request.method == 'DELETE':
         db.session.delete(event)
+        db.session.commit()
+        return '', 204
+
+
+@app.route('/contacts')
+@login_required
+def contacts():
+    category_filter = request.args.get('category', 'all')
+    contacts_query = Contact.query
+
+    if category_filter != 'all':
+        contacts_query = contacts_query.filter_by(category=category_filter)
+
+    contacts = contacts_query.order_by(Contact.last_name.asc()).all()
+    return render_template('contacts.html', contacts=contacts, category_filter=category_filter)
+
+
+@app.route('/api/contacts', methods=['GET', 'POST'])
+@login_required
+def api_contacts():
+    if request.method == 'POST':
+        data = request.get_json()
+        contact = Contact(
+            first_name=data['first_name'],
+            last_name=data['last_name'],
+            middle_name=data.get('middle_name', ''),
+            phone=data.get('phone', ''),
+            email=data.get('email', ''),
+            passport_series=data.get('passport_series', ''),
+            passport_number=data.get('passport_number', ''),
+            passport_issued_by=data.get('passport_issued_by', ''),
+            passport_issue_date=datetime.fromisoformat(data['passport_issue_date']) if data.get(
+                'passport_issue_date') else None,
+            passport_department_code=data.get('passport_department_code', ''),
+            address_index=data.get('address_index', ''),
+            address_country=data.get('address_country', ''),
+            address_region=data.get('address_region', ''),
+            address_city=data.get('address_city', ''),
+            address_street=data.get('address_street', ''),
+            address_house=data.get('address_house', ''),
+            address_apartment=data.get('address_apartment', ''),
+            company=data.get('company', ''),
+            position=data.get('position', ''),
+            birth_date=datetime.fromisoformat(data['birth_date']) if data.get('birth_date') else None,
+            category=data.get('category', 'client'),
+            social_telegram=data.get('social_telegram', ''),
+            social_whatsapp=data.get('social_whatsapp', ''),
+            social_vk=data.get('social_vk', ''),
+            notes=data.get('notes', '')
+        )
+        db.session.add(contact)
+        db.session.commit()
+        return jsonify(contact.to_dict()), 201
+
+    contacts = Contact.query.all()
+    return jsonify([contact.to_dict() for contact in contacts])
+
+
+@app.route('/api/contacts/<int:contact_id>', methods=['PUT', 'DELETE'])
+@login_required
+def api_contact(contact_id):
+    contact = Contact.query.get_or_404(contact_id)
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        contact.first_name = data.get('first_name', contact.first_name)
+        contact.last_name = data.get('last_name', contact.last_name)
+        contact.middle_name = data.get('middle_name', contact.middle_name)
+        contact.phone = data.get('phone', contact.phone)
+        contact.email = data.get('email', contact.email)
+        contact.passport_series = data.get('passport_series', contact.passport_series)
+        contact.passport_number = data.get('passport_number', contact.passport_number)
+        contact.passport_issued_by = data.get('passport_issued_by', contact.passport_issued_by)
+        contact.passport_issue_date = datetime.fromisoformat(data['passport_issue_date']) if data.get(
+            'passport_issue_date') else contact.passport_issue_date
+        contact.passport_department_code = data.get('passport_department_code', contact.passport_department_code)
+        contact.address_index = data.get('address_index', contact.address_index)
+        contact.address_country = data.get('address_country', contact.address_country)
+        contact.address_region = data.get('address_region', contact.address_region)
+        contact.address_city = data.get('address_city', contact.address_city)
+        contact.address_street = data.get('address_street', contact.address_street)
+        contact.address_house = data.get('address_house', contact.address_house)
+        contact.address_apartment = data.get('address_apartment', contact.address_apartment)
+        contact.company = data.get('company', contact.company)
+        contact.position = data.get('position', contact.position)
+        contact.birth_date = datetime.fromisoformat(data['birth_date']) if data.get(
+            'birth_date') else contact.birth_date
+        contact.category = data.get('category', contact.category)
+        contact.social_telegram = data.get('social_telegram', contact.social_telegram)
+        contact.social_whatsapp = data.get('social_whatsapp', contact.social_whatsapp)
+        contact.social_vk = data.get('social_vk', contact.social_vk)
+        contact.notes = data.get('notes', contact.notes)
+
+        db.session.commit()
+        return jsonify(contact.to_dict())
+
+    elif request.method == 'DELETE':
+        db.session.delete(contact)
         db.session.commit()
         return '', 204
 

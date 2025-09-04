@@ -29,6 +29,9 @@
                 <div class="user-details">
                     <span class="username">{{ session.get('username', 'Гость') }}</span>
                     <span class="user-role">Менеджер</span>
+                    <a href="{{ url_for('logout') }}" class="logout-link" style="font-size: 12px; color: #666; text-decoration: none;">
+                        <i class="fas fa-sign-out-alt"></i> Выйти
+                    </a>
                 </div>
             </div>
 
@@ -49,11 +52,11 @@
                                 <span class="badge">12</span>
                             </a>
                         </li>
-                        <li>
-                            <a href="#">
+                        <li class="{% if request.endpoint == 'contacts' %}active{% endif %}">
+                            <a href="{{ url_for('contacts') }}">
                                 <i class="fas fa-users"></i>
-                                <span>Контакты</span>
-                            </a>
+                                 <span>Контакты</span>
+                             </a>
                         </li>
                         <li>
                             <a href="#">
