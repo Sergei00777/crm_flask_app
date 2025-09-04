@@ -1,0 +1,940 @@
+{% extends "base.html" %}
+
+{% block title %}Склад/Автопарк{% endblock %}
+{% block page_title %}Управление автопарком{% endblock %}
+
+{% block content %}
+<div class="warehouse-container">
+    <!-- Заголовок и кнопки -->
+    <div class="warehouse-header">
+        <div class="filters">
+            <select id="status-filter" class="filter-select">
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Все автомобили</option>
+                <option value="in_stock" {% if status_filter == 'in_stock' %}selected{% endif %}>В наличии</option>
+                <option value="sold" {% if status_filter == 'sold' %}selected{% endif %}>Проданные</option>
+                <option value="in_service" {% if status_filter == 'in_service' %}selected{% endif %}>На обслуживании</option>
+            </select>
+        </div>
+
+        <button class="btn btn-primary" onclick="showCarModal()">
+            <i class="fas fa-plus"></i>
+            Добавить автомобиль
+        </button>
+    </div>
+
+    <!-- Список автомобилей -->
+    <div class="cars-grid">
+        {% for car in cars %}
+        <div class="car-card status-{{ car.status }}">
+            <div class="car-image">
+                <i class="fas fa-car"></i>
+            </div>
+
+            <div class="car-info">
+                <h3 class="car-title">{{ car.brand }} {{ car.model }} ({{ car.year }})</h3>
+
+                <div class="car-details">
+                    <span class="car-detail">
+                        <i class="fas fa-hashtag"></i>
+                        {{ car.license_plate }}
+                    </span>
+                    <span class="car-detail">
+                        <i class="fas fa-barcode"></i>
+                        VIN: {{ car.vin }}
+                    </span>
+                    <span class="car-detail">
+                        <i class="fas fa-tachometer-alt"></i>
+                        {{ car.mileage }} км
+                    </span>
+                    {% if car.engine_type %}
+                    <span class="car-detail">
+                        <i class="fas fa-cog"></i>
+                        {{ car.engine_type }}, {{ car.engine_volume }}л
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div class="car-financial">
+                    {% if car.purchase_price %}
+                    <span class="price">Покупка: ₽{{ car.purchase_price | round|int }}</span>
+                    {% endif %}
+                    {% if car.current_value %}
+                    <span class="price current">Текущая: ₽{{ car.current_value | round|int }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="car-actions">
+                <button class="btn-icon" onclick="viewCar({{ car.id }})" title="Просмотр">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-icon" onclick="editCar({{ car.id }})" title="Редактировать">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-icon" onclick="deleteCar({{ car.id }})" title="Удалить">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-car"></i>
+            <h3>Автомобили не найдены</h3>
+            <p>Добавьте первый автомобиль в автопарк</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра автомобиля -->
+<div id="viewCarModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h2 id="viewModalTitle">Просмотр автомобиля</h2>
+            <span class="close" onclick="closeViewCarModal()">&times;</span>
+        </div>
+
+        <div class="car-details-view">
+            <div class="car-details-header">
+                <div class="car-image-large">
+                    <i class="fas fa-car"></i>
+                </div>
+                <div class="car-title-large">
+                    <h2 id="viewBrandModel"></h2>
+                    <p id="viewYearPlate"></p>
+                </div>
+            </div>
+
+            <div class="details-tabs">
+                <button type="button" class="detail-tab-btn active" data-tab="basic-info">Основная информация</button>
+                <button type="button" class="detail-tab-btn" data-tab="tech-info">Технические данные</button>
+                <button type="button" class="detail-tab-btn" data-tab="financial-info">Финансовая информация</button>
+            </div>
+
+            <div class="details-content active" data-tab="basic-info">
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <label>VIN номер:</label>
+                        <span id="viewVin"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Гос. номер:</label>
+                        <span id="viewLicensePlate"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Цвет:</label>
+                        <span id="viewColor"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Статус:</label>
+                        <span id="viewStatus"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Состояние:</label>
+                        <span id="viewCondition"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Дата добавления:</label>
+                        <span id="viewCreatedAt"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details-content" data-tab="tech-info">
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <label>Тип двигателя:</label>
+                        <span id="viewEngineType"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Объем двигателя:</label>
+                        <span id="viewEngineVolume"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Мощность:</label>
+                        <span id="viewHorsepower"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Коробка передач:</label>
+                        <span id="viewTransmission"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Пробег:</label>
+                        <span id="viewMileage"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details-content" data-tab="financial-info">
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <label>Цена покупки:</label>
+                        <span id="viewPurchasePrice"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Дата покупки:</label>
+                        <span id="viewPurchaseDate"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Цена продажи:</label>
+                        <span id="viewSalePrice"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Дата продажи:</label>
+                        <span id="viewSaleDate"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Текущая стоимость:</label>
+                        <span id="viewCurrentValue"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Страховка (год):</label>
+                        <span id="viewInsuranceCost"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Обслуживание (год):</label>
+                        <span id="viewMaintenanceCost"></span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Топливо (месяц):</label>
+                        <span id="viewFuelCost"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="description-section">
+                <h3>Описание</h3>
+                <p id="viewDescription"></p>
+            </div>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="btn btn-primary" onclick="closeViewCarModal()">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для автомобиля -->
+<div id="carModal" class="modal">
+    <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-header">
+            <h2 id="modalTitle">Новый автомобиль</h2>
+            <span class="close" onclick="closeCarModal()">&times;</span>
+        </div>
+
+        <form id="carForm" onsubmit="handleCarSubmit(event)">
+            <input type="hidden" id="carId">
+
+            <div class="form-tabs">
+                <button type="button" class="tab-btn active" data-tab="basic">Основное</button>
+                <button type="button" class="tab-btn" data-tab="tech">Технические данные</button>
+                <button type="button" class="tab-btn" data-tab="financial">Финансы</button>
+                <button type="button" class="tab-btn" data-tab="costs">Затраты</button>
+            </div>
+
+            <div class="tab-content active" data-tab="basic">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="brand">Марка *</label>
+                        <input type="text" id="brand" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="model">Модель *</label>
+                        <input type="text" id="model" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="year">Год *</label>
+                        <input type="number" id="year" min="1900" max="2030" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="vin">VIN номер *</label>
+                        <input type="text" id="vin" required maxlength="17">
+                    </div>
+                    <div class="form-group">
+                        <label for="license_plate">Гос. номер *</label>
+                        <input type="text" id="license_plate" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="color">Цвет</label>
+                        <input type="text" id="color">
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Статус</label>
+                        <select id="status">
+                            <option value="in_stock">В наличии</option>
+                            <option value="sold">Продан</option>
+                            <option value="in_service">На обслуживании</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="condition">Состояние</label>
+                        <select id="condition">
+                            <option value="new">Новый</option>
+                            <option value="used">Б/У</option>
+                            <option value="damaged">Аварийный</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка технические данные -->
+            <div class="tab-content" data-tab="tech">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="engine_type">Тип двигателя</label>
+                        <select id="engine_type">
+                            <option value="">Выберите тип</option>
+                            <option value="бензин">Бензин</option>
+                            <option value="дизель">Дизель</option>
+                            <option value="электро">Электро</option>
+                            <option value="гибрид">Гибрид</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="engine_volume">Объем двигателя (л)</label>
+                        <input type="number" id="engine_volume" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="horsepower">Мощность (л.с.)</label>
+                        <input type="number" id="horsepower" min="0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="transmission">Коробка передач</label>
+                        <select id="transmission">
+                            <option value="">Выберите тип</option>
+                            <option value="автомат">Автомат</option>
+                            <option value="механика">Механика</option>
+                            <option value="робот">Робот</option>
+                            <option value="вариатор">Вариатор</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="mileage">Пробег (км)</label>
+                        <input type="number" id="mileage" min="0" value="0">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Описание</label>
+                    <textarea id="description" rows="3"></textarea>
+                </div>
+            </div>
+
+            <!-- Вкладка финансы -->
+            <div class="tab-content" data-tab="financial">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="purchase_price">Цена покупки (₽)</label>
+                        <input type="number" id="purchase_price" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="purchase_date">Дата покупки</label>
+                        <input type="date" id="purchase_date">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="sale_price">Цена продажи (₽)</label>
+                        <input type="number" id="sale_price" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="sale_date">Дата продажи</label>
+                        <input type="date" id="sale_date">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="current_value">Текущая стоимость (₽)</label>
+                    <input type="number" id="current_value" step="0.01" min="0">
+                </div>
+            </div>
+
+            <!-- Вкладка затраты -->
+            <div class="tab-content" data-tab="costs">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="insurance_cost">Страховка (₽/год)</label>
+                        <input type="number" id="insurance_cost" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="maintenance_cost">Обслуживание (₽/год)</label>
+                        <input type="number" id="maintenance_cost" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="fuel_cost">Топливо (₽/мес)</label>
+                        <input type="number" id="fuel_cost" step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeCarModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.warehouse-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 15px;
+}
+
+.cars-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.car-card {
+    background: white;
+    padding: 20px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    display: flex;
+    gap: 15px;
+    transition: transform 0.2s ease;
+}
+
+.car-card:hover {
+    transform: translateY(-2px);
+}
+
+.car-image {
+    width: 60px;
+    height: 60px;
+    background: var(--light);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--primary);
+}
+
+.car-info {
+    flex: 1;
+}
+
+.car-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--dark);
+}
+
+.car-details {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.car-detail {
+    font-size: 0.9rem;
+    color: var(--gray);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.car-financial {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.price {
+    font-size: 0.9rem;
+    padding: 3px 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.price.current {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.car-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.status-in_stock { border-left: 4px solid var(--success); }
+.status-sold { border-left: 4px solid var(--gray); }
+.status-in_service { border-left: 4px solid var(--warning); }
+
+/* Стили для вкладок формы */
+.form-tabs {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--gray);
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: var(--dark);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+/* Новые стили для модального окна просмотра */
+.car-details-view {
+    padding: 20px;
+}
+
+.car-details-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.car-image-large {
+    width: 80px;
+    height: 80px;
+    background: var(--light);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--primary);
+}
+
+.car-title-large h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: var(--dark);
+}
+
+.car-title-large p {
+    margin: 5px 0 0 0;
+    color: var(--gray);
+    font-size: 1rem;
+}
+
+.details-tabs {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 20px;
+}
+
+.detail-tab-btn {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--gray);
+}
+
+.detail-tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.details-content {
+    display: none;
+    margin-bottom: 20px;
+}
+
+.details-content.active {
+    display: block;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.detail-item label {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--gray);
+    margin-bottom: 5px;
+}
+
+.detail-item span {
+    font-size: 14px;
+    color: var(--dark);
+}
+
+.description-section {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.description-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: var(--dark);
+}
+
+.description-section p {
+    margin: 0;
+    color: var(--gray);
+    line-height: 1.5;
+}
+
+/* Улучшаем внешний вид кнопок действий */
+.car-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.btn-icon {
+    padding: 8px;
+    border: none;
+    background: #f8f9fa;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-icon:hover {
+    background: #e9ecef;
+}
+
+.btn-icon i {
+    font-size: 14px;
+    color: var(--gray);
+}
+
+.btn-icon:hover i {
+    color: var(--primary);
+}
+</style>
+
+
+<script>
+// Переключение вкладок в форме
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const tabName = this.getAttribute('data-tab');
+
+        // Убираем активный класс у всех кнопок и контента
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        // Добавляем активный класс текущей кнопке и контенту
+        this.classList.add('active');
+        document.querySelector(`.tab-content[data-tab="${tabName}"]`).classList.add('active');
+    });
+});
+
+// Фильтрация по статусу
+document.getElementById('status-filter').addEventListener('change', function() {
+    window.location.href = `{{ url_for('warehouse') }}?status=${this.value}`;
+});
+
+// Функции для работы с модальным окном
+function showCarModal(carId = null) {
+    const modal = document.getElementById('carModal');
+    const title = document.getElementById('modalTitle');
+    const form = document.getElementById('carForm');
+
+    if (carId) {
+        title.textContent = 'Редактировать автомобиль';
+        // Загрузка данных автомобиля
+        fetch(`/api/cars/${carId}`)
+            .then(response => response.json())
+            .then(car => {
+                document.getElementById('carId').value = car.id;
+                document.getElementById('brand').value = car.brand;
+                document.getElementById('model').value = car.model;
+                document.getElementById('year').value = car.year;
+                document.getElementById('vin').value = car.vin;
+                document.getElementById('license_plate').value = car.license_plate;
+                document.getElementById('color').value = car.color || '';
+                document.getElementById('status').value = car.status;
+                document.getElementById('condition').value = car.condition || 'used';
+                document.getElementById('engine_type').value = car.engine_type || '';
+                document.getElementById('engine_volume').value = car.engine_volume || '';
+                document.getElementById('horsepower').value = car.horsepower || '';
+                document.getElementById('transmission').value = car.transmission || '';
+                document.getElementById('mileage').value = car.mileage || 0;
+                document.getElementById('description').value = car.description || '';
+                document.getElementById('purchase_price').value = car.purchase_price || '';
+                document.getElementById('purchase_date').value = car.purchase_date || '';
+                document.getElementById('sale_price').value = car.sale_price || '';
+                document.getElementById('sale_date').value = car.sale_date || '';
+                document.getElementById('current_value').value = car.current_value || '';
+                document.getElementById('insurance_cost').value = car.insurance_cost || '';
+                document.getElementById('maintenance_cost').value = car.maintenance_cost || '';
+                document.getElementById('fuel_cost').value = car.fuel_cost || '';
+            });
+    } else {
+        title.textContent = 'Новый автомобиль';
+        form.reset();
+        document.getElementById('carId').value = '';
+    }
+
+    modal.style.display = 'block';
+}
+
+function closeCarModal() {
+    document.getElementById('carModal').style.display = 'none';
+}
+
+function handleCarSubmit(event) {
+    event.preventDefault();
+
+    const carId = document.getElementById('carId').value;
+    const method = carId ? 'PUT' : 'POST';
+    const url = carId ? `/api/cars/${carId}` : '/api/cars';
+
+    const formData = {
+        brand: document.getElementById('brand').value,
+        model: document.getElementById('model').value,
+        year: parseInt(document.getElementById('year').value),
+        vin: document.getElementById('vin').value,
+        license_plate: document.getElementById('license_plate').value,
+        color: document.getElementById('color').value,
+        status: document.getElementById('status').value,
+        condition: document.getElementById('condition').value,
+        engine_type: document.getElementById('engine_type').value,
+        engine_volume: parseFloat(document.getElementById('engine_volume').value) || null,
+        horsepower: parseInt(document.getElementById('horsepower').value) || null,
+        transmission: document.getElementById('transmission').value,
+        mileage: parseInt(document.getElementById('mileage').value) || 0,
+        purchase_price: parseFloat(document.getElementById('purchase_price').value) || null,
+        purchase_date: document.getElementById('purchase_date').value || null,
+        sale_price: parseFloat(document.getElementById('sale_price').value) || null,
+        sale_date: document.getElementById('sale_date').value || null,
+        current_value: parseFloat(document.getElementById('current_value').value) || null,
+        insurance_cost: parseFloat(document.getElementById('insurance_cost').value) || null,
+        maintenance_cost: parseFloat(document.getElementById('maintenance_cost').value) || null,
+        fuel_cost: parseFloat(document.getElementById('fuel_cost').value) || null,
+        description: document.getElementById('description').value
+    };
+
+    // Удаляем пустые поля
+    Object.keys(formData).forEach(key => {
+        if (formData[key] === null || formData[key] === '') {
+            delete formData[key];
+        }
+    });
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => {
+        if (response.ok) {
+            closeCarModal();
+            window.location.reload();
+        } else {
+            alert('Ошибка при сохранении');
+        }
+    });
+}
+
+function editCar(carId) {
+    showCarModal(carId);
+}
+
+function deleteCar(carId) {
+    if (confirm('Вы уверены, что хотите удалить этот автомобиль?')) {
+        fetch(`/api/cars/${carId}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Ошибка при удалении');
+            }
+        });
+    }
+}
+
+// Новые функции для просмотра автомобиля
+function viewCar(carId) {
+    fetch(`/api/cars/${carId}`)
+        .then(response => response.json())
+        .then(car => {
+            // Заполняем модальное окно данными
+            document.getElementById('viewModalTitle').textContent = `Просмотр: ${car.brand} ${car.model}`;
+            document.getElementById('viewBrandModel').textContent = `${car.brand} ${car.model}`;
+            document.getElementById('viewYearPlate').textContent = `${car.year} • ${car.license_plate}`;
+            document.getElementById('viewVin').textContent = car.vin || 'Не указан';
+            document.getElementById('viewLicensePlate').textContent = car.license_plate;
+            document.getElementById('viewColor').textContent = car.color || 'Не указан';
+            document.getElementById('viewStatus').textContent = getStatusText(car.status);
+            document.getElementById('viewCondition').textContent = getConditionText(car.condition);
+            document.getElementById('viewCreatedAt').textContent = formatDate(car.created_at);
+
+            // Технические данные
+            document.getElementById('viewEngineType').textContent = car.engine_type || 'Не указан';
+            document.getElementById('viewEngineVolume').textContent = car.engine_volume ? `${car.engine_volume} л` : 'Не указан';
+            document.getElementById('viewHorsepower').textContent = car.horsepower ? `${car.horsepower} л.с.` : 'Не указан';
+            document.getElementById('viewTransmission').textContent = car.transmission || 'Не указан';
+            document.getElementById('viewMileage').textContent = car.mileage ? `${car.mileage.toLocaleString()} км` : '0 км';
+
+            // Финансовые данные
+            document.getElementById('viewPurchasePrice').textContent = car.purchase_price ? `₽${car.purchase_price.toLocaleString()}` : 'Не указана';
+            document.getElementById('viewPurchaseDate').textContent = car.purchase_date ? formatDate(car.purchase_date) : 'Не указана';
+            document.getElementById('viewSalePrice').textContent = car.sale_price ? `₽${car.sale_price.toLocaleString()}` : 'Не указана';
+            document.getElementById('viewSaleDate').textContent = car.sale_date ? formatDate(car.sale_date) : 'Не указана';
+            document.getElementById('viewCurrentValue').textContent = car.current_value ? `₽${car.current_value.toLocaleString()}` : 'Не указана';
+            document.getElementById('viewInsuranceCost').textContent = car.insurance_cost ? `₽${car.insurance_cost.toLocaleString()}` : 'Не указана';
+            document.getElementById('viewMaintenanceCost').textContent = car.maintenance_cost ? `₽${car.maintenance_cost.toLocaleString()}` : 'Не указана';
+            document.getElementById('viewFuelCost').textContent = car.fuel_cost ? `₽${car.fuel_cost.toLocaleString()}` : 'Не указана';
+
+            // Описание
+            document.getElementById('viewDescription').textContent = car.description || 'Описание отсутствует';
+
+            // Показываем модальное окно
+            document.getElementById('viewCarModal').style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке данных автомобиля:', error);
+            alert('Не удалось загрузить данные автомобиля');
+        });
+}
+
+function closeViewCarModal() {
+    document.getElementById('viewCarModal').style.display = 'none';
+}
+
+// Вспомогательные функции
+function getStatusText(status) {
+    const statuses = {
+        'in_stock': 'В наличии',
+        'sold': 'Продан',
+        'in_service': 'На обслуживании'
+    };
+    return statuses[status] || status;
+}
+
+function getConditionText(condition) {
+    const conditions = {
+        'new': 'Новый',
+        'used': 'Б/У',
+        'damaged': 'Аварийный'
+    };
+    return conditions[condition] || condition;
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'Не указана';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU');
+}
+
+// Обработчики для вкладок в модальном окне просмотра
+document.querySelectorAll('.detail-tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const tabName = this.getAttribute('data-tab');
+
+        // Убираем активный класс у всех кнопок и контента
+        document.querySelectorAll('.detail-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.details-content').forEach(c => c.classList.remove('active'));
+
+        // Добавляем активный класс текущей кнопке и контенту
+        this.classList.add('active');
+        document.querySelector(`.details-content[data-tab="${tabName}"]`).classList.add('active');
+    });
+});
+
+// Закрытие модального окна при клике вне его
+window.onclick = function(event) {
+    const viewModal = document.getElementById('viewCarModal');
+    const editModal = document.getElementById('carModal');
+
+    if (event.target === viewModal) {
+        closeViewCarModal();
+    }
+    if (event.target === editModal) {
+        closeCarModal();
+    }
+}
+</script>
+{% endblock %}

@@ -175,6 +175,74 @@ class Contact(db.Model):
         return " ".join(parts)
 
 
+class Car(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    # Основная информация
+    vin = db.Column(db.String(17), unique=True, nullable=False)
+    license_plate = db.Column(db.String(15), nullable=False)
+    brand = db.Column(db.String(50), nullable=False)
+    model = db.Column(db.String(50), nullable=False)
+    year = db.Column(db.Integer, nullable=False)
+    color = db.Column(db.String(30))
+
+    # Технические характеристики
+    engine_type = db.Column(db.String(20))  # бензин, дизель, электро
+    engine_volume = db.Column(db.Float)  # литры
+    horsepower = db.Column(db.Integer)
+    transmission = db.Column(db.String(20))  # автомат, механика
+    mileage = db.Column(db.Integer)  # пробег в км
+
+    # Финансовая информация
+    purchase_price = db.Column(db.Float)
+    purchase_date = db.Column(db.Date)
+    sale_price = db.Column(db.Float)
+    sale_date = db.Column(db.Date)
+    current_value = db.Column(db.Float)
+
+    # Состояние и статус
+    status = db.Column(db.String(20), default='in_stock')  # in_stock, sold, in_service
+    condition = db.Column(db.String(20))  # новый, б/у, аварийный
+    description = db.Column(db.Text)
+
+    # Затраты на содержание
+    insurance_cost = db.Column(db.Float)
+    maintenance_cost = db.Column(db.Float)
+    fuel_cost = db.Column(db.Float)
+
+    # Системные поля
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'vin': self.vin,
+            'license_plate': self.license_plate,
+            'brand': self.brand,
+            'model': self.model,
+            'year': self.year,
+            'color': self.color,
+            'engine_type': self.engine_type,
+            'engine_volume': self.engine_volume,
+            'horsepower': self.horsepower,
+            'transmission': self.transmission,
+            'mileage': self.mileage,
+            'purchase_price': self.purchase_price,
+            'purchase_date': self.purchase_date.isoformat() if self.purchase_date else None,
+            'sale_price': self.sale_price,
+            'sale_date': self.sale_date.isoformat() if self.sale_date else None,
+            'current_value': self.current_value,
+            'status': self.status,
+            'condition': self.condition,
+            'description': self.description,
+            'insurance_cost': self.insurance_cost,
+            'maintenance_cost': self.maintenance_cost,
+            'fuel_cost': self.fuel_cost,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
+
 # Функция для создания демо-данных
 def create_demo_data():
     # Добавляем демо-задачи если их нет
@@ -277,6 +345,57 @@ def create_demo_data():
         ]
         db.session.bulk_save_objects(demo_contacts)
 
+    # Добавляем демо-автомобили если их нет
+    if Car.query.count() == 0:
+        demo_cars = [
+            Car(
+                vin='XW8AB12B3FG123456',
+                license_plate='А123АА777',
+                brand='Toyota',
+                model='Camry',
+                year=2022,
+                color='Черный',
+                engine_type='бензин',
+                engine_volume=2.5,
+                horsepower=249,
+                transmission='автомат',
+                mileage=15000,
+                purchase_price=2500000,
+                purchase_date=datetime(2022, 5, 15).date(),
+                current_value=2200000,
+                status='in_stock',
+                condition='used',
+                description='Отличное состояние, один владелец',
+                insurance_cost=30000,
+                maintenance_cost=15000,
+                fuel_cost=5000
+            ),
+            Car(
+                vin='Z94CB41BAER123789',
+                license_plate='В456ВВ777',
+                brand='BMW',
+                model='X5',
+                year=2021,
+                color='Белый',
+                engine_type='дизель',
+                engine_volume=3.0,
+                horsepower=265,
+                transmission='автомат',
+                mileage=45000,
+                purchase_price=3500000,
+                purchase_date=datetime(2021, 3, 10).date(),
+                sale_price=3200000,
+                sale_date=datetime(2023, 8, 20).date(),
+                status='sold',
+                condition='used',
+                description='Полная комплектация, сервисная история',
+                insurance_cost=45000,
+                maintenance_cost=20000,
+                fuel_cost=7000
+            )
+        ]
+        db.session.bulk_save_objects(demo_cars)
+
     db.session.commit()
 
 
@@ -331,12 +450,16 @@ def logout():
     return redirect(url_for('login'))
 
 
-
 # Маршруты
 @app.route('/')
 @login_required
 def index():
     return render_template('index.html')
+
+@app.route('/car_catalog')
+def car_catalog():
+    return render_template('car_catalog.html')
+
 
 
 @app.route('/tasks')
@@ -415,7 +538,7 @@ def calendar_view(view_type):
     else:
         current_date = datetime.utcnow()
 
-    # Получаем события для выбранной даты/недели/месяца
+    # Получаем события для выбранной дата/недели/месяца
     if view_type == 'day':
         start_of_day = datetime.combine(current_date, time.min)
         end_of_day = datetime.combine(current_date, time.max)
@@ -599,6 +722,96 @@ def api_contact(contact_id):
 
     elif request.method == 'DELETE':
         db.session.delete(contact)
+        db.session.commit()
+        return '', 204
+
+
+@app.route('/warehouse')
+@login_required
+def warehouse():
+    status_filter = request.args.get('status', 'all')
+    cars_query = Car.query
+
+    if status_filter != 'all':
+        cars_query = cars_query.filter_by(status=status_filter)
+
+    cars = cars_query.order_by(Car.brand.asc(), Car.model.asc()).all()
+    return render_template('warehouse.html', cars=cars, status_filter=status_filter)
+
+
+@app.route('/api/cars', methods=['GET', 'POST'])
+@login_required
+def api_cars():
+    if request.method == 'POST':
+        data = request.get_json()
+        car = Car(
+            vin=data['vin'],
+            license_plate=data['license_plate'],
+            brand=data['brand'],
+            model=data['model'],
+            year=data['year'],
+            color=data.get('color'),
+            engine_type=data.get('engine_type'),
+            engine_volume=data.get('engine_volume'),
+            horsepower=data.get('horsepower'),
+            transmission=data.get('transmission'),
+            mileage=data.get('mileage', 0),
+            purchase_price=data.get('purchase_price'),
+            purchase_date=datetime.fromisoformat(data['purchase_date']) if data.get('purchase_date') else None,
+            sale_price=data.get('sale_price'),
+            sale_date=datetime.fromisoformat(data['sale_date']) if data.get('sale_date') else None,
+            current_value=data.get('current_value'),
+            status=data.get('status', 'in_stock'),
+            condition=data.get('condition'),
+            description=data.get('description'),
+            insurance_cost=data.get('insurance_cost'),
+            maintenance_cost=data.get('maintenance_cost'),
+            fuel_cost=data.get('fuel_cost')
+        )
+        db.session.add(car)
+        db.session.commit()
+        return jsonify(car.to_dict()), 201
+
+    cars = Car.query.all()
+    return jsonify([car.to_dict() for car in cars])
+
+
+@app.route('/api/cars/<int:car_id>', methods=['PUT', 'DELETE'])
+@login_required
+def api_car(car_id):
+    car = Car.query.get_or_404(car_id)
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        car.vin = data.get('vin', car.vin)
+        car.license_plate = data.get('license_plate', car.license_plate)
+        car.brand = data.get('brand', car.brand)
+        car.model = data.get('model', car.model)
+        car.year = data.get('year', car.year)
+        car.color = data.get('color', car.color)
+        car.engine_type = data.get('engine_type', car.engine_type)
+        car.engine_volume = data.get('engine_volume', car.engine_volume)
+        car.horsepower = data.get('horsepower', car.horsepower)
+        car.transmission = data.get('transmission', car.transmission)
+        car.mileage = data.get('mileage', car.mileage)
+        car.purchase_price = data.get('purchase_price', car.purchase_price)
+        car.purchase_date = datetime.fromisoformat(data['purchase_date']) if data.get(
+            'purchase_date') else car.purchase_date
+        car.sale_price = data.get('sale_price', car.sale_price)
+        car.sale_date = datetime.fromisoformat(data['sale_date']) if data.get('sale_date') else car.sale_date
+        car.current_value = data.get('current_value', car.current_value)
+        car.status = data.get('status', car.status)
+        car.condition = data.get('condition', car.condition)
+        car.description = data.get('description', car.description)
+        car.insurance_cost = data.get('insurance_cost', car.insurance_cost)
+        car.maintenance_cost = data.get('maintenance_cost', car.maintenance_cost)
+        car.fuel_cost = data.get('fuel_cost', car.fuel_cost)
+
+        db.session.commit()
+        return jsonify(car.to_dict())
+
+    elif request.method == 'DELETE':
+        db.session.delete(car)
         db.session.commit()
         return '', 204
 

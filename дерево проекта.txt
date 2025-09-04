@@ -16,6 +16,8 @@
         ├── base.html          # Базовый шаблон (каркас сайта)
         ├── index.html         # Главная страница
         ├── contacts.html     # Страница контактов
+        ├── login.html
+        ├── warehouse.html
         ├── modules/           # Папка для шаблонов модулей
         │   ├── tasks.html     # Страница задач
         │   ├── ...  

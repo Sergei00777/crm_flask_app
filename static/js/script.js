@@ -102,4 +102,58 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
+function handleCarSubmit(event) {
+    event.preventDefault();
 
+    const carId = document.getElementById('carId').value;
+    const method = carId ? 'PUT' : 'POST';
+    const url = carId ? `/api/cars/${carId}` : '/api/cars';
+
+    const formData = {
+        brand: document.getElementById('brand').value,
+        model: document.getElementById('model').value,
+        year: parseInt(document.getElementById('year').value),
+        vin: document.getElementById('vin').value,
+        license_plate: document.getElementById('license_plate').value,
+        color: document.getElementById('color').value,
+        status: document.getElementById('status').value,
+        condition: document.getElementById('condition').value,
+        engine_type: document.getElementById('engine_type').value,
+        engine_volume: parseFloat(document.getElementById('engine_volume').value) || null,
+        horsepower: parseInt(document.getElementById('horsepower').value) || null,
+        transmission: document.getElementById('transmission').value,
+        mileage: parseInt(document.getElementById('mileage').value) || 0,
+        purchase_price: parseFloat(document.getElementById('purchase_price').value) || null,
+        purchase_date: document.getElementById('purchase_date').value || null,
+        sale_price: parseFloat(document.getElementById('sale_price').value) || null,
+        sale_date: document.getElementById('sale_date').value || null,
+        current_value: parseFloat(document.getElementById('current_value').value) || null,
+        insurance_cost: parseFloat(document.getElementById('insurance_cost').value) || null,
+        maintenance_cost: parseFloat(document.getElementById('maintenance_cost').value) || null,
+        fuel_cost: parseFloat(document.getElementById('fuel_cost').value) || null,
+        description: document.getElementById('description').value
+    };
+
+    // Удаляем пустые поля
+    Object.keys(formData).forEach(key => {
+        if (formData[key] === null || formData[key] === '') {
+            delete formData[key];
+        }
+    });
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => {
+        if (response.ok) {
+            closeCarModal();
+            window.location.reload();
+        } else {
+            alert('Ошибка при сохранении');
+        }
+    });
+}
