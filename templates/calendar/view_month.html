@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Календарь - Месяц{% endblock %}
+{% block page_title %}Календарь - Месяц{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
+<style>
+.month-view {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: auto 1fr;
+    height: calc(100vh - 200px);
+}
+
+.month-weekdays {
+    display: contents;
+}
+
+.month-weekday {
+    padding: 15px;
+    text-align: center;
+    background: #f8f9fa;
+    font-weight: 600;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.month-days {
+    display: contents;
+}
+
+.month-day {
+    border: 1px solid #f0f0f0;
+    padding: 10px;
+    min-height: 120px;
+    background: white;
+}
+
+.month-day.other-month {
+    background: #fafafa;
+    color: var(--gray);
+}
+
+.month-day.today {
+    background: #e3f2fd;
+    border: 2px solid var(--primary);
+}
+
+.day-number {
+    font-weight: 600;
+    margin-bottom: 5px;
+    font-size: 1.1rem;
+}
+
+.day-events {
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+.month-event {
+    font-size: 0.8rem;
+    padding: 2px 4px;
+    margin-bottom: 2px;
+    border-radius: 2px;
+    color: white;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.month-event:hover {
+    opacity: 0.9;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <div class="calendar-header">
+        <div class="view-switcher">
+            <a href="{{ url_for('calendar_view', view_type='month') }}" class="btn btn-outline {% if view_type == 'month' %}active{% endif %}">
+                Месяц
+            </a>
+            <a href="{{ url_for('calendar_view', view_type='week') }}" class="btn btn-outline {% if view_type == 'week' %}active{% endif %}">
+                Неделя
+            </a>
+            <a href="{{ url_for('calendar_view', view_type='day') }}" class="btn btn-outline {% if view_type == 'day' %}active{% endif %}">
+                День
+            </a>
+        </div>
+
+        <div class="calendar-navigation">
+            <button class="btn btn-outline" onclick="navigateCalendar('prev')">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+
+            <button class="btn btn-primary" onclick="navigateCalendar('today')">
+                Сегодня
+            </button>
+
+            <button class="btn btn-outline" onclick="navigateCalendar('next')">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+
+            <h2 class="current-date">{{ current_date.strftime('%B %Y') }}</h2>
+        </div>
+
+        <button class="btn btn-success" onclick="showEventModal()">
+            <i class="fas fa-plus"></i>
+            Создать событие
+        </button>
+    </div>
+
+    <div class="month-view">
+        <!-- Дни недели -->
+        <div class="month-weekday">Пн</div>
+        <div class="month-weekday">Вт</div>
+        <div class="month-weekday">Ср</div>
+        <div class="month-weekday">Чт</div>
+        <div class="month-weekday">Пт</div>
+        <div class="month-weekday">Сб</div>
+        <div class="month-weekday">Вс</div>
+
+        <!-- Дни месяца -->
+        {% set first_day = current_date.replace(day=1) %}
+        {% set start_date = first_day - timedelta(days=first_day.weekday()) %}
+
+        {% for week in range(6) %}
+            {% for day in range(7) %}
+                {% set current_day = start_date + timedelta(days=week * 7 + day) %}
+                {% set is_current_month = current_day.month == current_date.month %}
+                {% set is_today = current_day.date() == datetime.utcnow().date() %}
+
+                <div class="month-day {% if not is_current_month %}other-month{% endif %} {% if is_today %}today{% endif %}"
+                     onclick="{% if is_current_month %}openDayView('{{ current_day.isoformat() }}'){% endif %}">
+
+                    <div class="day-number">{{ current_day.day }}</div>
+
+                    <div class="day-events">
+                        {% for event in events %}
+                            {% if event.start_time.date() == current_day.date() %}
+                            <div class="month-event event-{{ event.event_type }}"
+                                 onclick="event.stopPropagation(); editEvent({{ event.id }})">
+                                {{ event.start_time.strftime('%H:%M') }} {{ event.title }}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Модальное окно события -->
+{% include 'calendar/event_modal.html' %}
+
+<script>
+const currentDate = new Date('{{ current_date.isoformat() }}');
+
+function navigateCalendar(direction) {
+    let newDate = new Date(currentDate);
+
+    switch(direction) {
+        case 'prev':
+            newDate.setMonth(newDate.getMonth() - 1);
+            break;
+        case 'next':
+            newDate.setMonth(newDate.getMonth() + 1);
+            break;
+        case 'today':
+            newDate = new Date();
+            break;
+    }
+
+    const dateStr = newDate.toISOString().split('T')[0];
+    window.location.href = `{{ url_for('calendar_view', view_type='month') }}?date=${dateStr}`;
+}
+
+function openDayView(dateString) {
+    window.location.href = `{{ url_for('calendar_view', view_type='day') }}?date=${dateString}`;
+}
+
+// Функции для модального окна будут здесь
+</script>
+{% endblock %}

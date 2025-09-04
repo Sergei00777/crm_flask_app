@@ -1,0 +1,67 @@
+<!-- Модальное окно события -->
+<div id="eventModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="eventModalTitle">Новое событие</h2>
+            <span class="close" onclick="closeEventModal()">&times;</span>
+        </div>
+
+        <form id="eventForm" onsubmit="handleEventSubmit(event)">
+            <input type="hidden" id="eventId">
+
+            <div class="form-group">
+                <label for="eventTitle">Название события *</label>
+                <input type="text" id="eventTitle" required>
+            </div>
+
+            <div class="form-group">
+                <label for="eventDescription">Описание</label>
+                <textarea id="eventDescription" rows="3"></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="eventStart">Начало *</label>
+                    <input type="datetime-local" id="eventStart" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="eventEnd">Окончание *</label>
+                    <input type="datetime-local" id="eventEnd" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="eventType">Тип события</label>
+                    <select id="eventType">
+                        <option value="meeting">Встреча</option>
+                        <option value="call">Звонок</option>
+                        <option value="task">Задача</option>
+                        <option value="reminder">Напоминание</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="eventLocation">Местоположение</label>
+                    <input type="text" id="eventLocation">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="eventStatus">Статус</label>
+                <select id="eventStatus">
+                    <option value="scheduled">Запланировано</option>
+                    <option value="in_progress">В процессе</option>
+                    <option value="completed">Завершено</option>
+                    <option value="cancelled">Отменено</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeEventModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>

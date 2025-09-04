@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM System - {% block title %}Главная{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Левое меню -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-chart-line"></i>
+                    <span>ProAuto_CRM</span>
+                </div>
+                <button class="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+
+            <div class="user-info">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-details">
+                    <span class="username">{{ session.get('username', 'Гость') }}</span>
+                    <span class="user-role">Менеджер</span>
+                </div>
+            </div>
+
+            <nav class="main-menu">
+                <div class="menu-section">
+                    <h3>ОСНОВНОЕ</h3>
+                    <ul>
+                        <li class="{% if request.endpoint == 'index' %}active{% endif %}">
+                            <a href="{{ url_for('index') }}">
+                                <i class="fas fa-home"></i>
+                                <span>Главная</span>
+                            </a>
+                        </li>
+                        <li class="{% if request.endpoint == 'tasks' %}active{% endif %}">
+                            <a href="{{ url_for('tasks') }}">
+                                <i class="fas fa-tasks"></i>
+                                <span>Задачи</span>
+                                <span class="badge">12</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <i class="fas fa-users"></i>
+                                <span>Контакты</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <i class="fas fa-building"></i>
+                                <span>Организации</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="menu-section">
+                    <h3>БИЗНЕС</h3>
+                    <ul>
+                        <li>
+                            <a href="#">
+                                <i class="fas fa-handshake"></i>
+                                <span>Сделки</span>
+                                <span class="badge warning">3</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <i class="fas fa-chart-bar"></i>
+                                <span>Отчёты</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <i class="fas fa-file-contract"></i>
+                                <span>Договоры</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <i class="fas fa-credit-card"></i>
+                                <span>Счета и платежи</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="menu-section">
+                    <h3>ДОПОЛНИТЕЛЬНО</h3>
+                    <ul>
+                        <li>
+                            <a href="#">
+                                <i class="fas fa-file"></i>
+                                <span>Документы</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <i class="fas fa-project-diagram"></i>
+                                <span>Проекты</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <i class="fas fa-cog"></i>
+                                <span>Настройки</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Основной контент -->
+        <div class="main-content">
+            <!-- Верхняя панель -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h1>{% block page_title %}CRM Система{% endblock %}</h1>
+                </div>
+                <div class="header-right">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Поиск...">
+                    </div>
+                    <div class="header-actions">
+                        <button class="header-btn">
+                            <i class="fas fa-bell"></i>
+                            <span class="badge danger">5</span>
+                        </button>
+                        <button class="header-btn">
+                            <i class="fas fa-envelope"></i>
+                            <span class="badge">3</span>
+                        </button>
+                        <button class="header-btn">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Вкладки модуля -->
+            <div class="module-tabs">
+                <div class="tabs-container">
+                    {% block module_tabs %}
+                    <a href="{{ url_for('calendar_view', view_type='day') }}" class="tab {% if request.endpoint == 'calendar_view' %}active{% endif %}">
+                        <i class="fas fa-calendar"></i>
+                        Календарь
+                    </a>
+                    <a href="#" class="tab">
+                        <i class="fas fa-stream"></i>
+                        Лента событий
+                    </a>
+                    <a href="{{ url_for('tasks') }}" class="tab {% if request.endpoint == 'tasks' %}active{% endif %}">
+                        <i class="fas fa-tasks"></i>
+                        Задачи
+                    </a>
+                    <a href="#" class="tab">
+                        <i class="fas fa-history"></i>
+                        История
+                    </a>
+                    <a href="#" class="tab">
+                        <i class="fas fa-chart-line"></i>
+                        Результаты
+                    </a>
+                    {% endblock %}
+                </div>
+            </div>
+
+            <!-- Контент страницы -->
+            <main class="content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

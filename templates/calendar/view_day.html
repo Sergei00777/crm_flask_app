@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}Календарь - День{% endblock %}
+{% block page_title %}Календарь{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <!-- Заголовок календаря -->
+    <div class="calendar-header">
+        <div class="view-switcher">
+            <a href="{{ url_for('calendar_view', view_type='month') }}" class="btn btn-outline {% if view_type == 'month' %}active{% endif %}">
+                Месяц
+            </a>
+            <a href="{{ url_for('calendar_view', view_type='week') }}" class="btn btn-outline {% if view_type == 'week' %}active{% endif %}">
+                Неделя
+            </a>
+            <a href="{{ url_for('calendar_view', view_type='day') }}" class="btn btn-outline {% if view_type == 'day' %}active{% endif %}">
+                День
+            </a>
+        </div>
+
+        <div class="calendar-navigation">
+            <button class="btn btn-outline" onclick="navigateCalendar('prev')">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+
+            <button class="btn btn-primary" onclick="navigateCalendar('today')">
+                Сегодня
+            </button>
+
+            <button class="btn btn-outline" onclick="navigateCalendar('next')">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+
+            <h2 class="current-date">{{ current_date.strftime('%d %B %Y') }}</h2>
+        </div>
+
+        <button class="btn btn-success" onclick="showEventModal()">
+            <i class="fas fa-plus"></i>
+            Создать событие
+        </button>
+    </div>
+
+    <!-- Сетка времени -->
+    <div class="time-grid">
+        <div class="time-axis">
+            <div class="time-label"></div>
+            <div class="time-content">
+                <div class="current-time-line"></div>
+                {% for hour in range(8, 21) %}
+                <div class="hour-row">
+                    <div class="hour-label">{{ hour }}:00</div>
+                    <div class="hour-slot" data-hour="{{ hour }}">
+                        {% for event in events %}
+                            {% if event.start_time.hour == hour %}
+                            <div class="calendar-event event-{{ event.event_type }} event-{{ event.status }}"
+                                 style="height: {{ (event.end_time - event.start_time).seconds // 3600 * 60 }}px; top: {{ event.start_time.minute }}px;"
+                                 onclick="editEvent({{ event.id }})">
+                                <div class="event-time">
+                                    {{ event.start_time.strftime('%H:%M') }} - {{ event.end_time.strftime('%H:%M') }}
+                                </div>
+                                <div class="event-title">{{ event.title }}</div>
+                                {% if event.location %}
+                                <div class="event-location">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    {{ event.location }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно события -->
+<div id="eventModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="eventModalTitle">Новое событие</h2>
+            <span class="close" onclick="closeEventModal()">&times;</span>
+        </div>
+
+        <form id="eventForm" onsubmit="handleEventSubmit(event)">
+            <input type="hidden" id="eventId">
+
+            <div class="form-group">
+                <label for="eventTitle">Название события *</label>
+                <input type="text" id="eventTitle" required>
+            </div>
+
+            <div class="form-group">
+                <label for="eventDescription">Описание</label>
+                <textarea id="eventDescription" rows="3"></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="eventStart">Начало *</label>
+                    <input type="datetime-local" id="eventStart" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="eventEnd">Окончание *</label>
+                    <input type="datetime-local" id="eventEnd" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="eventType">Тип события</label>
+                    <select id="eventType">
+                        <option value="meeting">Встреча</option>
+                        <option value="call">Звонок</option>
+                        <option value="task">Задача</option>
+                        <option value="reminder">Напоминание</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="eventLocation">Местоположение</label>
+                    <input type="text" id="eventLocation">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="eventStatus">Статус</label>
+                <select id="eventStatus">
+                    <option value="scheduled">Запланировано</option>
+                    <option value="in_progress">В процессе</option>
+                    <option value="completed">Завершено</option>
+                    <option value="cancelled">Отменено</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="closeEventModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentEventId = null;
+const currentDate = new Date('{{ current_date.isoformat() }}');
+
+function navigateCalendar(direction) {
+    let newDate = new Date(currentDate);
+
+    switch(direction) {
+        case 'prev':
+            newDate.setDate(newDate.getDate() - 1);
+            break;
+        case 'next':
+            newDate.setDate(newDate.getDate() + 1);
+            break;
+        case 'today':
+            newDate = new Date();
+            break;
+    }
+
+    const dateStr = newDate.toISOString().split('T')[0];
+    window.location.href = `{{ url_for('calendar_view', view_type='day') }}?date=${dateStr}`;
+}
+
+function showEventModal(eventId = null, startTime = null, endTime = null) {
+    currentEventId = eventId;
+    const modal = document.getElementById('eventModal');
+    const title = document.getElementById('eventModalTitle');
+
+    if (eventId) {
+        title.textContent = 'Редактировать событие';
+        loadEventData(eventId);
+    } else {
+        title.textContent = 'Новое событие';
+        document.getElementById('eventForm').reset();
+        document.getElementById('eventId').value = '';
+
+        // Установка времени по умолчанию
+        if (startTime && endTime) {
+            document.getElementById('eventStart').value = startTime;
+            document.getElementById('eventEnd').value = endTime;
+        } else {
+            const now = new Date();
+            const start = new Date(now);
+            start.setMinutes(0);
+            const end = new Date(start);
+            end.setHours(start.getHours() + 1);
+
+            document.getElementById('eventStart').value = start.toISOString().slice(0, 16);
+            document.getElementById('eventEnd').value = end.toISOString().slice(0, 16);
+        }
+
+        document.getElementById('eventStatus').value = 'scheduled';
+    }
+
+    modal.style.display = 'block';
+}
+
+function closeEventModal() {
+    document.getElementById('eventModal').style.display = 'none';
+    currentEventId = null;
+}
+
+function loadEventData(eventId) {
+    fetch(`/api/events/${eventId}`)
+        .then(response => response.json())
+        .then(event => {
+            document.getElementById('eventId').value = event.id;
+            document.getElementById('eventTitle').value = event.title;
+            document.getElementById('eventDescription').value = event.description || '';
+            document.getElementById('eventType').value = event.type;
+            document.getElementById('eventLocation').value = event.location || '';
+            document.getElementById('eventStatus').value = event.status;
+
+            // Преобразование времени для input datetime-local
+            const startTime = new Date(event.start);
+            const endTime = new Date(event.end);
+
+            document.getElementById('eventStart').value = startTime.toISOString().slice(0, 16);
+            document.getElementById('eventEnd').value = endTime.toISOString().slice(0, 16);
+        })
+        .catch(error => console.error('Error loading event:', error));
+}
+
+function handleEventSubmit(event) {
+    event.preventDefault();
+
+    const formData = {
+        title: document.getElementById('eventTitle').value,
+        description: document.getElementById('eventDescription').value,
+        start: document.getElementById('eventStart').value,
+        end: document.getElementById('eventEnd').value,
+        type: document.getElementById('eventType').value,
+        location: document.getElementById('eventLocation').value,
+        status: document.getElementById('eventStatus').value
+    };
+
+    const url = currentEventId ? `/api/events/${currentEventId}` : '/api/events';
+    const method = currentEventId ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => {
+        if (response.ok) {
+            closeEventModal();
+            window.location.reload();
+        } else {
+            throw new Error('Ошибка сохранения события');
+        }
+    })
+    .catch(error => {
+        alert('Ошибка: ' + error.message);
+    });
+}
+
+function editEvent(eventId) {
+    showEventModal(eventId);
+}
+
+// Создание события по клику на временной слот
+document.querySelectorAll('.hour-slot').forEach(slot => {
+    slot.addEventListener('click', function(e) {
+        if (!e.target.closest('.calendar-event')) {
+            const hour = this.dataset.hour;
+            const startTime = new Date(currentDate);
+            startTime.setHours(parseInt(hour), 0, 0, 0);
+
+            const endTime = new Date(startTime);
+            endTime.setHours(startTime.getHours() + 1);
+
+            const startStr = startTime.toISOString().slice(0, 16);
+            const endStr = endTime.toISOString().slice(0, 16);
+
+            showEventModal(null, startStr, endStr);
+        }
+    });
+});
+
+// Закрытие модального окна при клике вне его
+window.onclick = function(event) {
+    const modal = document.getElementById('eventModal');
+    if (event.target === modal) {
+        closeEventModal();
+    }
+};
+</script>
+{% endblock %}

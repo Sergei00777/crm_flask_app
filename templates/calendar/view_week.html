@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Календарь - Неделя{% endblock %}
+{% block page_title %}Календарь - Неделя{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/calendar.css') }}">
+<style>
+.week-view {
+    display: grid;
+    grid-template-columns: 80px repeat(7, 1fr);
+    grid-template-rows: auto;
+    height: calc(100vh - 200px);
+    overflow: auto;
+}
+
+.week-header {
+    display: contents;
+}
+
+.week-time-column {
+    grid-column: 1;
+    background: #f8f9fa;
+    border-right: 1px solid #e0e0e0;
+}
+
+.week-day-header {
+    padding: 15px;
+    text-align: center;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+    font-weight: 600;
+}
+
+.week-day-header.today {
+    background: #e3f2fd;
+    color: var(--primary);
+}
+
+.week-time-slot {
+    height: 60px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    color: var(--gray);
+}
+
+.week-day-column {
+    border-right: 1px solid #f0f0f0;
+    position: relative;
+}
+
+.week-event {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    padding: 5px;
+    border-radius: 4px;
+    color: white;
+    font-size: 0.8rem;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.week-event:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <div class="calendar-header">
+        <div class="view-switcher">
+            <a href="{{ url_for('calendar_view', view_type='month') }}" class="btn btn-outline {% if view_type == 'month' %}active{% endif %}">
+                Месяц
+            </a>
+            <a href="{{ url_for('calendar_view', view_type='week') }}" class="btn btn-outline {% if view_type == 'week' %}active{% endif %}">
+                Неделя
+            </a>
+            <a href="{{ url_for('calendar_view', view_type='day') }}" class="btn btn-outline {% if view_type == 'day' %}active{% endif %}">
+                День
+            </a>
+        </div>
+
+        <div class="calendar-navigation">
+            <button class="btn btn-outline" onclick="navigateCalendar('prev')">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+
+            <button class="btn btn-primary" onclick="navigateCalendar('today')">
+                Сегодня
+            </button>
+
+            <button class="btn btn-outline" onclick="navigateCalendar('next')">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+
+            <h2 class="current-date">Неделя {{ current_date.strftime('%d %B %Y') }}</h2>
+        </div>
+
+        <button class="btn btn-success" onclick="showEventModal()">
+            <i class="fas fa-plus"></i>
+            Создать событие
+        </button>
+    </div>
+
+    <div class="week-view">
+        <div class="week-time-column">
+            <div class="week-day-header">&nbsp;</div>
+            {% for hour in range(8, 20) %}
+            <div class="week-time-slot">{{ hour }}:00</div>
+            {% endfor %}
+        </div>
+
+        {% for day in range(7) %}
+        {% set current_day = current_date - timedelta(days=current_date.weekday() - day) %}
+        <div class="week-day-column">
+            <div class="week-day-header {% if current_day.date() == datetime.utcnow().date() %}today{% endif %}">
+                <div>{{ current_day.strftime('%a') }}</div>
+                <div>{{ current_day.strftime('%d') }}</div>
+            </div>
+
+            {% for hour in range(8, 20) %}
+            <div class="week-time-slot" data-day="{{ day }}" data-hour="{{ hour }}" onclick="createEventAtSlot({{ day }}, {{ hour }})">
+                {% for event in events %}
+                    {% if event.start_time.date() == current_day.date() and event.start_time.hour == hour %}
+                    <div class="week-event event-{{ event.event_type }}"
+                         style="top: {{ event.start_time.minute }}px; height: {{ (event.end_time - event.start_time).seconds // 60 }}px;"
+                         onclick="editEvent({{ event.id }})">
+                        {{ event.start_time.strftime('%H:%M') }} {{ event.title }}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Модальное окно события (такое же как в day.html) -->
+{% include 'calendar/event_modal.html' %}
+
+<script>
+const currentDate = new Date('{{ current_date.isoformat() }}');
+
+function navigateCalendar(direction) {
+    let newDate = new Date(currentDate);
+
+    switch(direction) {
+        case 'prev':
+            newDate.setDate(newDate.getDate() - 7);
+            break;
+        case 'next':
+            newDate.setDate(newDate.getDate() + 7);
+            break;
+        case 'today':
+            newDate = new Date();
+            break;
+    }
+
+    const dateStr = newDate.toISOString().split('T')[0];
+    window.location.href = `{{ url_for('calendar_view', view_type='week') }}?date=${dateStr}`;
+}
+
+function createEventAtSlot(day, hour) {
+    const eventDate = new Date(currentDate);
+    eventDate.setDate(eventDate.getDate() - eventDate.getDay() + day);
+    eventDate.setHours(hour, 0, 0, 0);
+
+    const endDate = new Date(eventDate);
+    endDate.setHours(hour + 1, 0, 0, 0);
+
+    const startStr = eventDate.toISOString().slice(0, 16);
+    const endStr = endDate.toISOString().slice(0, 16);
+
+    showEventModal(null, startStr, endStr);
+}
+
+// Функции showEventModal, closeEventModal, editEvent должны быть определены
+// Они будут в отдельном файле или продублированы здесь
+</script>
+{% endblock %}

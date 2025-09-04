@@ -1,0 +1,230 @@
+.calendar-container {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    background: white;
+}
+
+.view-switcher {
+    display: flex;
+    gap: 10px;
+}
+
+.calendar-navigation {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.current-date {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--dark);
+    min-width: 200px;
+    text-align: center;
+}
+
+.time-grid {
+    height: calc(100vh - 250px);
+    overflow-y: auto;
+}
+
+.time-axis {
+    display: flex;
+    min-height: 100%;
+}
+
+.time-label {
+    width: 80px;
+    padding: 10px;
+    font-weight: bold;
+    color: var(--gray);
+    border-right: 1px solid #e0e0e0;
+}
+
+.time-content {
+    flex: 1;
+    position: relative;
+}
+
+.hour-row {
+    display: flex;
+    border-bottom: 1px solid #f0f0f0;
+    min-height: 60px;
+}
+
+.hour-label {
+    width: 80px;
+    padding: 10px;
+    font-weight: bold;
+    color: var(--gray);
+    text-align: right;
+    border-right: 1px solid #e0e0e0;
+}
+
+.hour-slot {
+    flex: 1;
+    padding: 10px;
+    position: relative;
+    border-right: 1px solid #f0f0f0;
+    cursor: pointer;
+}
+
+.hour-slot:hover {
+    background: #f8f9fa;
+}
+
+.hour-slot::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    border-top: 1px dashed #e0e0e0;
+}
+
+.current-time-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--danger);
+    z-index: 10;
+}
+
+.current-time-line::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: -5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--danger);
+}
+
+.calendar-event {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    overflow: hidden;
+    z-index: 5;
+    transition: transform 0.2s ease;
+}
+
+.calendar-event:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.event-time {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    margin-bottom: 2px;
+}
+
+.event-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+.event-location {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Цвета событий по типам */
+.event-meeting {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border-left: 4px solid #2980b9;
+}
+
+.event-call {
+    background: linear-gradient(135deg, #27ae60, #229954);
+    border-left: 4px solid #229954;
+}
+
+.event-task {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    border-left: 4px solid #e67e22;
+}
+
+.event-reminder {
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    border-left: 4px solid #8e44ad;
+}
+
+/* Статусы событий */
+.event-completed {
+    opacity: 0.7;
+}
+
+.event-cancelled {
+    opacity: 0.5;
+    background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+    border-left: 4px solid #7f8c8d;
+}
+
+/* Адаптивность */
+@media (max-width: 1024px) {
+    .calendar-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+
+    .view-switcher {
+        justify-content: center;
+    }
+
+    .calendar-navigation {
+        justify-content: center;
+    }
+
+    .current-date {
+        min-width: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .time-axis {
+        flex-direction: column;
+    }
+
+    .time-label {
+        display: none;
+    }
+
+    .hour-row {
+        flex-direction: column;
+    }
+
+    .hour-label {
+        width: 100%;
+        text-align: left;
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .hour-slot {
+        min-height: 40px;
+    }
+}
